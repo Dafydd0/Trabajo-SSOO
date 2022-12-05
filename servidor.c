@@ -173,8 +173,17 @@ int main(){
 		      if (hueco == -1)
 			printf("ERROR: no queda hueco en la tabla\n");
 		      else{
+		      		      
 			tablaDispos[hueco] = qbuffer.dispo;
 			tablaDispos[hueco].opciones = SIN_DEFINIR;
+			
+			for (int i=0;i<MAX_TOTAL; i++){
+		      		if(strcmp(seg[i].nombre,qbuffer.dispo.nombre)==0){ //Actualizamos la MC
+		        	    seg[i] = qbuffer.dispo;
+		        	    seg[i].opciones = SIN_DEFINIR;
+		        	}
+		        }
+			
 			imp_Tabla(tablaDispos,seg);
 		      }
 		      break;
@@ -190,19 +199,22 @@ int main(){
 			    {
 			      found=true;
 			      tablaDispos[i]=vacio;
-			      seg[i].year = 0000;
-			      seg[i].month = 00;
-			      seg[i].day = 00;
-			      seg[i].hour = 00;
-			      seg[i].min = 00;	
 			    }
+			}
+			
+			for (int i=0;i<MAX_TOTAL;i++){
+
+				if(strcmp(seg[i].nombre, qbuffer.dispo.nombre) == 0 ){
+			   	      seg[i] = vacio;
+			   	      }
 			}
 		      imp_Tabla(tablaDispos,seg);
 		      found=false;
 		      break;
 		    }
 		    case CONMUTA:{
-		      bool found = false;
+		    
+		      bool found = false;	
 		      for (int i=0;i<MAX_TOTAL&&found==false;i++)
 			{
 			  if(strcmp(tablaDispos[i].nombre,qbuffer.dispo.nombre)==0)
@@ -210,30 +222,27 @@ int main(){
 			      found=true;
 
 			      tablaDispos[i].ON=qbuffer.dispo.ON;
-			      
-			      if (tablaDispos[i].ON == 1){//Encender
-			      
-			      tiempo = time(NULL);
-			      fecha = localtime(&tiempo);
-			      			      
-			      tablaDispos[i].year = fecha->tm_year + 1900;
-			      tablaDispos[i].month = fecha->tm_mon;
-			      tablaDispos[i].day = fecha->tm_mday;
-			      tablaDispos[i].hour = fecha->tm_hour;
-			      tablaDispos[i].min = fecha->tm_min;
-			      
-			      }
-			      else{//Apagar
-		
-			      tablaDispos[i].year = 0000;
-			      tablaDispos[i].month = 00;
-			      tablaDispos[i].day = 00;
-			      tablaDispos[i].hour = 00;
-			      tablaDispos[i].min = 00;	      
-			 
-			    }
+			      tablaDispos[i].year = qbuffer.dispo.year;
+			      tablaDispos[i].month = qbuffer.dispo.month;
+			      tablaDispos[i].day = qbuffer.dispo.day;
+			      tablaDispos[i].hour = qbuffer.dispo.hour;
+			      tablaDispos[i].min = qbuffer.dispo.min;
 			}
 		      }
+		      for (int i=0;i<MAX_TOTAL;i++){
+
+			if(strcmp(seg[i].nombre, qbuffer.dispo.nombre) == 0){
+
+			      seg[i] = qbuffer.dispo;
+			     /* seg[i].year = qbuffer.dispo.year;
+			      seg[i].month = qbuffer.dispo.month;
+			      seg[i].day = qbuffer.dispo.day;
+			      seg[i].hour = qbuffer.dispo.hour;
+			      seg[i].min = qbuffer.dispo.min;*/
+			
+			     }
+			}
+			
 		      imp_Tabla(tablaDispos,seg);
 		      found=false;
 		      break;
@@ -270,6 +279,15 @@ int main(){
  */
 void imp_Tabla(disp tabla[MAX_TOTAL],disp *MC)
 {
+
+for (int i=0;i<20; i++){
+	printf("\nTabla i: %d", i);
+	printf("Consumo: %f, Opciones: %d, year: %d, month: %d, day: %d, hour: %d, min: %d", tabla[i].consumo, tabla[i].opciones, tabla[i].year, tabla[i].month, tabla[i].day, tabla[i].hour, tabla[i].min);
+	printf("\nMC i: %d", i);
+	printf("Consumo: %f, Opciones: %d, year: %d, month: %d, day: %d, hour: %d, min: %d", MC[i].consumo, MC[i].opciones, MC[i].year, MC[i].month, MC[i].day, MC[i].hour, MC[i].min);
+	printf("\n");
+}
+			
   //abro el semáforo MC
   sem_t *sem_MC=NULL;
   if((sem_MC=sem_open("MC", 0600))==NULL)
