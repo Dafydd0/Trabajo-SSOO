@@ -333,6 +333,11 @@ void borraTodo(sem_t*mutex,sem_t*cambios,disp *seg){
     for (int i = 0; i<MAX_DISP; i++){
       seg[i].consumo = -1;
       seg[i].opciones = ELIMINAR;
+      seg[i].year=0000;
+      seg[i].month=00;
+      seg[i].day=00;
+      seg[i].hour=00;
+      seg[i].min=00;
     }
     sem_post(cambios);
     sem_post(mutex);
