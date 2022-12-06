@@ -234,8 +234,12 @@ void creaDispo(sem_t*mutex,sem_t*cambios,disp *seg,sem_t*MC,disp*segServ){
     sem_post(MC);
   }
   else{
-    printf("El dispositivo es nuevo, introduzca el consumo: ");
-    scanf("%f",&consumo);
+    do{
+  	printf("El dispositivo es nuevo, introduzca el consumo: ");
+    	scanf("%f",&consumo);
+	if (consumo <= 0)
+		printf("El consumo introducido no es válido.\n");
+    }while (consumo <= 0)
     sem_wait(MC);
     strcpy(segServ[h].nombre,tipo);
     
@@ -288,16 +292,7 @@ void creaDispo(sem_t*mutex,sem_t*cambios,disp *seg,sem_t*MC,disp*segServ){
 void borraDispo(sem_t*mutex,sem_t*cambios,disp *seg){
 
   int hueco = -1;
-  printf("+----------+---------------+---------------+---------------+\n");
-  printf("|  ID\t | NOMBRE\t | CONSUMO\t | WORKING\t | FECHA ENCENDIDO\t |\n");
-  printf("+----------+---------------+---------------+---------------+\n");
-  for (int i = 0; i<MAX_DISP;i++){
-    if (seg[i].consumo != -1)
-      {
-	printf("| %d\t |%13.13s\t | %10.2f\t | %6.6s\t | %02d/%02d/%04d %02d:%02d\t \n",i,seg[i].nombre,seg[i].consumo,seg[i].ON?"TRUE":"FALSE", seg[i].day, seg[i].month, seg[i].year, seg[i].hour, seg[i].min);
-      }
-  }
-  printf("+----------+---------------+---------------+---------------+\n");
+  listaDispo(seg);
   printf("Introduzca el id del sensor a borrar: ");
   scanf("%d",&hueco);
   
@@ -333,6 +328,11 @@ void borraTodo(sem_t*mutex,sem_t*cambios,disp *seg){
     for (int i = 0; i<MAX_DISP; i++){
       seg[i].consumo = -1;
       seg[i].opciones = ELIMINAR;
+      seg[i].year=0000;
+      seg[i].month=00;
+      seg[i].day=00;
+      seg[i].hour=00;
+      seg[i].min=00;
     }
     sem_post(cambios);
     sem_post(mutex);
@@ -359,17 +359,7 @@ void listaDispo(disp *seg){
 
 void conmutaDispo(sem_t*mutex,sem_t*cambios,disp *seg){
   int hueco = -1;
-  printf("+----------+---------------+---------------+---------------+\n");
-  printf("|  ID\t | NOMBRE\t | CONSUMO\t | WORKING\t | FECHA ENCENDIDO\t |\n");
-  printf("+----------+---------------+---------------+---------------+\n");
-  for (int i = 0; i<MAX_DISP;i++){
-    if (seg[i].consumo != -1)
-      {
-	printf("| %d\t |%13.13s\t | %10.2f\t | %6.6s\t | %02d/%02d/%04d %02d:%02d\t \n",i,seg[i].nombre,seg[i].consumo,seg[i].ON?"TRUE":"FALSE", seg[i].day, seg[i].month, seg[i].year, seg[i].hour, seg[i].min);
-      }
-  }
-  printf("+----------+---------------+---------------+---------------+\n");
-  
+  listaDispo(seg);
   printf("Introduzca el id del sensor a conmutar: ");
   scanf("%d",&hueco);
   
