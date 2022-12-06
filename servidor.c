@@ -205,7 +205,11 @@ int main(){
 			for (int i=0;i<MAX_TOTAL;i++){
 
 				if(strcmp(seg[i].nombre, qbuffer.dispo.nombre) == 0 ){
-			   	      seg[i] = vacio;
+					seg[i].year = qbuffer.dispo.year;
+			      		seg[i].month = qbuffer.dispo.month;
+				        seg[i].day = qbuffer.dispo.day;
+				        seg[i].hour = qbuffer.dispo.hour;
+				        seg[i].min = qbuffer.dispo.min;
 			   	      }
 			}
 		      imp_Tabla(tablaDispos,seg);
