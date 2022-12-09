@@ -24,6 +24,7 @@
 #define ELIMINAR 1
 #define CONMUTA 3
 #define EXIT 2
+#define RESET 4
 #define SIN_DEFINIR 10
 
 typedef struct dispositivo{
@@ -186,22 +187,26 @@ void cierraRecursos(sem_t**cambios,sem_t**mutex,disp**seg){
 
 int interfaz_ini(char id){
    int select = 0;
-   printf("\nTERMINAL DE SENSORIZADO DEL GESTOR %c\n",id);
-   printf("Seleccione que desea hacer:\n");
-   printf("0->Salir\n");
-   printf("1->Registrar nuevo sensor\n");
-   printf("2->Cambiar estado de un sensor\n");
-   printf("3->Eliminar un sensor\n");
-   printf("4->Listar todos mis sensores\n");
-   printf("5->Borrar todos los sensores del gestor\n");
-   printf("6->Cambiar de gestor\n\n");
-   printf("Opción: ");
-   scanf("%d",&select);
-   printf("\n");
-   while ((select>6) || (select<0)){
-     printf("Por favor, introduzca una opción adecuada: ");
-     scanf("%d",&select);
-     printf("\n");
+   if (id == '-')
+	select = 0;
+   else{
+   	printf("\nTERMINAL DE SENSORIZADO DEL GESTOR %c\n",id);
+  	printf("Seleccione que desea hacer:\n");
+	printf("0->Salir\n");
+   	printf("1->Registrar nuevo sensor\n");
+   	printf("2->Cambiar estado de un sensor\n");
+   	printf("3->Eliminar un sensor\n");
+   	printf("4->Listar todos mis sensores\n");
+   	printf("5->Borrar todos los sensores del gestor\n");
+   	printf("6->Cambiar de gestor\n\n");
+   	printf("Opción: ");
+   	scanf("%d",&select);
+   	printf("\n");
+   	while ((select>6) || (select<0)){
+     	printf("Por favor, introduzca una opción adecuada: ");
+     	scanf("%d",&select);
+     	printf("\n");
+   	}
    }
    return (select);
 }
@@ -234,8 +239,12 @@ void creaDispo(sem_t*mutex,sem_t*cambios,disp *seg,sem_t*MC,disp*segServ){
     sem_post(MC);
   }
   else{
-    printf("El dispositivo es nuevo, introduzca el consumo: ");
-    scanf("%f",&consumo);
+    do{
+  	printf("El dispositivo es nuevo, introduzca el consumo: ");
+    	scanf("%f",&consumo);
+	if (consumo <= 0)
+		printf("El consumo introducido no es válido.\n");
+    }while (consumo <= 0);
     sem_wait(MC);
     strcpy(segServ[h].nombre,tipo);
     
@@ -288,16 +297,7 @@ void creaDispo(sem_t*mutex,sem_t*cambios,disp *seg,sem_t*MC,disp*segServ){
 void borraDispo(sem_t*mutex,sem_t*cambios,disp *seg){
 
   int hueco = -1;
-  printf("+----------+---------------+---------------+---------------+\n");
-  printf("|  ID\t | NOMBRE\t | CONSUMO\t | WORKING\t | FECHA ENCENDIDO\t |\n");
-  printf("+----------+---------------+---------------+---------------+\n");
-  for (int i = 0; i<MAX_DISP;i++){
-    if (seg[i].consumo != -1)
-      {
-	printf("| %d\t |%13.13s\t | %10.2f\t | %6.6s\t | %02d/%02d/%04d %02d:%02d\t \n",i,seg[i].nombre,seg[i].consumo,seg[i].ON?"TRUE":"FALSE", seg[i].day, seg[i].month, seg[i].year, seg[i].hour, seg[i].min);
-      }
-  }
-  printf("+----------+---------------+---------------+---------------+\n");
+  listaDispo(seg);
   printf("Introduzca el id del sensor a borrar: ");
   scanf("%d",&hueco);
   
@@ -364,17 +364,7 @@ void listaDispo(disp *seg){
 
 void conmutaDispo(sem_t*mutex,sem_t*cambios,disp *seg){
   int hueco = -1;
-  printf("+----------+---------------+---------------+---------------+\n");
-  printf("|  ID\t | NOMBRE\t | CONSUMO\t | WORKING\t | FECHA ENCENDIDO\t |\n");
-  printf("+----------+---------------+---------------+---------------+\n");
-  for (int i = 0; i<MAX_DISP;i++){
-    if (seg[i].consumo != -1)
-      {
-	printf("| %d\t |%13.13s\t | %10.2f\t | %6.6s\t | %02d/%02d/%04d %02d:%02d\t \n",i,seg[i].nombre,seg[i].consumo,seg[i].ON?"TRUE":"FALSE", seg[i].day, seg[i].month, seg[i].year, seg[i].hour, seg[i].min);
-      }
-  }
-  printf("+----------+---------------+---------------+---------------+\n");
-  
+  listaDispo(seg);
   printf("Introduzca el id del sensor a conmutar: ");
   scanf("%d",&hueco);
   
@@ -419,6 +409,7 @@ char seleccionaGestor(){
   key_t clave; 
   int *seg = NULL;
   int shmid;
+  int cont = 0;
 
   char result[1000];
 
@@ -438,14 +429,24 @@ char seleccionaGestor(){
       if((seg=shmat(shmid,NULL,0))== (int *)-1) 
 	printf("Error al mapear el segmento\n"); 
       else{
-	printf("Los gestores disponibles son: \n");
 	sem_wait(gestores);
 	for (int i=0; i<MAX_GEST; i++){
-	  if (seg[i] == 1){
-	    validos[i] = i+48;
-	    printf("\t- GESTOR %c\n",i+48);
-	    seg[i]=1;
-	  }
+	   if(seg[i] == 1)
+	     cont++;
+	}
+	if (cont!=0){
+	   printf("Los gestores disponibles son: \n");
+	   for (int i=0; i<MAX_GEST; i++){
+	     if (seg[i] == 1){
+	       validos[i] = i+48;
+	       printf("\t- GESTOR %c\n",i+48);
+	       seg[i]=1;
+	     }
+	   }
+	}
+	else{
+	   printf("No hay gestores disponibles\n");
+	   result[0] = '-';
 	}
 	sem_post(gestores);
 	shmdt(seg);
@@ -455,7 +456,7 @@ char seleccionaGestor(){
   }
   //Comprueba si el gestor elegido existe
   int apto = 0;
-  while (apto == 0){
+  while ((apto == 0) && (cont != 0)){
     printf("Indique el gestor sobre el que desea operar: ");
     scanf("%999s",result);
     for (int i=0; i<MAX_GEST; i++){

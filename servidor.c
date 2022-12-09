@@ -25,6 +25,7 @@
 #define ELIMINAR 1
 #define EXIT 2
 #define CONMUTA 3
+#define RESET 4
 #define SIN_DEFINIR 10
 
 #define COSTE_KWH 0.21945
@@ -115,6 +116,7 @@ int main(){
 		  strcpy(predef[i].nombre,nombreEd[i]);
 		  predef[i].consumo=consumoEd[i];
 		  predef[i].opciones=SIN_DEFINIR;
+		  predef[i].ON=true;
 		/*  //Fecha
 		  tiempo = time(NULL);
   		  fecha = localtime(&tiempo);	
@@ -153,8 +155,11 @@ int main(){
 	      }
 	      //Interfaz de bienvenida para el usuario:
 	      printf(".---.  _                                _    .-.      \n: .; ::_;                              :_;   : :      \n:   .'.-. .--. ,-.,- .-..-. .--. ,-.,-..-. .-' : .--. \n: .; :: :' '_.': ,. :: `; :' '_.': ,. :: :' .; :' .; :\n:___.':_;`.__.':_;:_;`.__.'`.__.':_;:_;:_;`.__.'`.__.'\n\n");
+	      printf("Los dispositivos predefinidos son:\n");
+	      imp_Tabla(tablaDispos,seg);
+		  
 	      //El servidor entrará en un bucle que no finalizará hasta que reciba
-	      //esa instrucción de un cliente.
+	      //esa instrucción de un cliente.  
 	      bool exit = false;
 	      while(exit==false)
 		{
@@ -256,8 +261,13 @@ int main(){
 		    case EXIT:
 		      exit=true;
 		      printf("Cerrando servidor\n");
-
 		      break;
+		
+		    case RESET:
+			for (int i=0; i<MAX_TOTAL; i++)
+			   tablaDispos[i]=vacio;
+			imp_Tabla(tablaDispos,seg);
+			break;
 	      
 		    default:
 		      printf("Algo raro ha sucedido...\n%s.%s=%d",qbuffer.dispo.nombre,"opciones",qbuffer.dispo.opciones);
