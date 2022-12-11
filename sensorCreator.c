@@ -20,13 +20,13 @@
 #define MAX_TAM_NOMBRE 20
 #define TAM_BUFFER_MC 20
 
+
 #define ANADIR 1
 #define CAMBIAESTADO 2
 #define ELIMINAR 3
 #define SALIR 4
 
 #define NO_ASIGNADO 10
-
 
 
 typedef struct dispositivo{
@@ -159,8 +159,10 @@ int interfaz_ini(char id){
    if (id == '-')
 	select = 0;
    else{
+
    	printf("\nTERMINAL DEL USUARIO: %c\n",id);
   	printf("Seleccione una opción:\n");
+
 	printf("0->Salir\n");
    	printf("1->Registrar nuevo sensor\n");
    	printf("2->Cambiar estado de un sensor\n");
@@ -324,6 +326,7 @@ void borraDispo(sem_t*mutex,sem_t*cambios,disp *seg){
 
   int hueco = -1;
   listaDispo(seg);
+
   printf("Introduzca el id del sensor a borrar: ");
   scanf("%d",&hueco);
   

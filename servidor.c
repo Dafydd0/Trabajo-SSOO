@@ -21,13 +21,13 @@
 #define MAX_GEST 5
 #define MAX_TOTAL MAX_DISP*MAX_GEST
 
+
 #define ANADIR 1
 #define CAMBIAESTADO 2
 #define ELIMINAR 3
 #define SALIR 4
 
 #define NO_ASIGNADO 10
-
 
 #define COSTE_KWH 0.21945
 /**
@@ -263,7 +263,7 @@ int main(){
 		      exit=true;
 		      printf("Cerrando servidor\n");
 		      break;
-	      
+
 		    default:
 		      printf("Algo raro ha sucedido...\n%s.%s=%d",qbuffer.dispo.nombre,"opciones",qbuffer.dispo.opciones);
 		      break;
