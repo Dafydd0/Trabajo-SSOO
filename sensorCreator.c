@@ -20,12 +20,14 @@
 #define MAX_TAM_NOMBRE 20
 #define TAM_BUFFER_MC 20
 
-#define ANADIR 0
-#define ELIMINAR 1
-#define CONMUTA 3
-#define EXIT 2
-#define RESET 4
-#define SIN_DEFINIR 10
+
+#define ANADIR 1
+#define CAMBIAESTADO 2
+#define ELIMINAR 3
+#define SALIR 4
+
+#define NO_ASIGNADO 10
+
 
 typedef struct dispositivo{
   char nombre[MAX_TAM_NOMBRE];
@@ -52,14 +54,14 @@ void creaDispo(sem_t*mutex,sem_t*cambios,disp *seg,sem_t*MC,disp*segServ);
 void borraDispo(sem_t*mutex,sem_t*cambios,disp *seg);
 void borraTodo(sem_t*mutex,sem_t*cambios,disp *seg);
 void listaDispo(disp *seg);
-void conmutaDispo(sem_t*mutex,sem_t*cambios,disp *seg);
-char seleccionaGestor();
+void cambiaEstadoDispo(sem_t*mutex,sem_t*cambios,disp *seg);
+char seleccionaUsuario();
 int iniciaRecursos(char id,sem_t**cambios,sem_t**mutex,disp**seg);
 void cierraRecursos(sem_t**cambios,sem_t**mutex,disp**seg);
 
 int main (int argc, char * argv[]){
   tiempo = time(NULL);
-  char id = seleccionaGestor();
+  char id = seleccionaUsuario();
   
   sem_t *cambios = NULL;
   sem_t *mutex = NULL;
@@ -91,41 +93,40 @@ int main (int argc, char * argv[]){
 	  while (end){
 	    select = interfaz_ini(id);
 	    switch(select){
-	    case(0):
+	    case(0): //SALIR
 	      {
 		end = 0;
 		printf("Cerrando terminal\n\n");
 		break;
 	      }
-	    case(1):
+	    case(1): //AÑADIR DISPOSITIVO
 	      {
 		creaDispo(mutex,cambios,seg,MC,segServ);
 		break;
 	      }
-	    case(2):
+	    case(2): //CAMBIAR ESTADO SENSOR
 	      {
-		conmutaDispo(mutex,cambios,seg);
+		cambiaEstadoDispo(mutex,cambios,seg);
 		break;
 	      }
-	    case(3):
+	    case(3): //BORRAR DISPOSITIVO
 	      {
-
 		borraDispo(mutex,cambios,seg);
 		break;
 	      }
-	    case(4):
+	    case(4): //MOSTRAR TODOS LOS DISPOTIVOS
 	      {
 		listaDispo(seg);
 		break;
 	      }
-	    case(5):
+	    case(5): //BORRAR TODOS LOS DISPOSITIVOS
 	      {
 		borraTodo(mutex,cambios,seg);
 		break;
 	      }
-	    case(6):
+	    case(6): //CAMBIAR DE GESTOR
 	      {
-      		id = seleccionaGestor();
+      		id = seleccionaUsuario();
 		cierraRecursos(&cambios,&mutex,&seg);
 		if (iniciaRecursos(id,&cambios,&mutex,&seg)==0){
 		  printf("Se ha producido un error al cambiar de gestor, cerrando\n");
@@ -148,50 +149,20 @@ int main (int argc, char * argv[]){
   return(0);
 }
 
-int iniciaRecursos(char id,sem_t**cambios,sem_t**mutex,disp**seg){
-  key_t clave; 
-  int shmid;
-  int result = 1;
-  char claveMutex[] = {'m','u','t','e','x',id,'\0'};  
-  char claveCambios[] = {'c','a','m','b','i','o',id,'\0'};
-  char claveMemoria = id;
+/*
 
-  if ((*cambios = sem_open(claveCambios,0)) == SEM_FAILED){
-    result = 0;
-  }
-  else {
-    if ((*mutex = sem_open(claveMutex,0)) == SEM_FAILED){
-      result = 0;
-    }
-    else{   
-      clave=ftok(".",claveMemoria); 
+Función que muestra la interfaz del usuario
 
-      if((shmid = shmget(clave,(MAX_DISP)*sizeof(disp),IPC_CREAT|0660))==-1) 
-	{ 
-	  result = 0;
-	} 
-      else{ 
-	if((*seg=shmat(shmid,NULL,0))== (disp *)-1) 
-	  result = 0;
-      }
-    }
-  }
-  return (result);
-}
-
-void cierraRecursos(sem_t**cambios,sem_t**mutex,disp**seg){
-  shmdt(*seg);	   
-  sem_close(*cambios);
-  sem_close(*mutex);
-}
-
+*/
 int interfaz_ini(char id){
    int select = 0;
    if (id == '-')
 	select = 0;
    else{
-   	printf("\nTERMINAL DE SENSORIZADO DEL GESTOR %c\n",id);
-  	printf("Seleccione que desea hacer:\n");
+
+   	printf("\nTERMINAL DEL USUARIO: %c\n",id);
+  	printf("Seleccione una opción:\n");
+
 	printf("0->Salir\n");
    	printf("1->Registrar nuevo sensor\n");
    	printf("2->Cambiar estado de un sensor\n");
@@ -211,6 +182,11 @@ int interfaz_ini(char id){
    return (select);
 }
 
+/*
+
+Función que crea un dispositivo nuevo o incrementa en 1 el número de dispositivos si ya existía uno con el mismo nombre
+
+*/
 void creaDispo(sem_t*mutex,sem_t*cambios,disp *seg,sem_t*MC,disp*segServ){
   char tipo[1000];
   float consumo;
@@ -294,10 +270,63 @@ void creaDispo(sem_t*mutex,sem_t*cambios,disp *seg,sem_t*MC,disp*segServ){
   printf("\n");
 }
 
+/*
+
+Función que cambia el estado de un dispotivo ENCENDIDO/APAGADO
+
+*/
+void cambiaEstadoDispo(sem_t*mutex,sem_t*cambios,disp *seg){
+  int hueco = -1;
+  listaDispo(seg);
+  printf("Introduzca el id del sensor a conmutar: ");
+  scanf("%d",&hueco);
+  
+  if (hueco<0||hueco>=MAX_DISP||seg[hueco].consumo==-1)
+    printf("No ha seleccionado un id válido\n");
+  else{
+    sem_wait(mutex);
+    if (seg[hueco].ON == 1){//Si es 1, lo ponemos a 0
+    
+      seg[hueco].year=0000;
+      seg[hueco].month=00;
+      seg[hueco].day=00;
+      seg[hueco].hour=00;
+      seg[hueco].min=00;
+      seg[hueco].ON = 0;
+      seg[hueco].opciones = CAMBIAESTADO;
+
+    }
+    else{//Si es 0, lo ponemos a 1
+    
+      tiempo = time(NULL);
+      fecha = localtime(&tiempo);
+    
+      seg[hueco].year = fecha->tm_year + 1900;
+      seg[hueco].month = fecha->tm_mon;
+      seg[hueco].day = fecha->tm_mday;
+      seg[hueco].hour = fecha->tm_hour;
+      seg[hueco].min = fecha->tm_min;
+      seg[hueco].ON = 1;
+      seg[hueco].opciones = CAMBIAESTADO;
+
+    }
+    sem_post(cambios);
+    sem_post(mutex);
+    printf("Sensor conmutado con exito");
+  }
+  printf("\n");
+}
+
+/*
+
+Función que borra un dispositivo del usuario en cuestión
+
+*/
 void borraDispo(sem_t*mutex,sem_t*cambios,disp *seg){
 
   int hueco = -1;
   listaDispo(seg);
+
   printf("Introduzca el id del sensor a borrar: ");
   scanf("%d",&hueco);
   
@@ -321,14 +350,38 @@ void borraDispo(sem_t*mutex,sem_t*cambios,disp *seg){
   printf("\n");
 }
 
+/*
+
+Función que imprime todos los dispositivos asociados a un usuario
+
+*/
+void listaDispo(disp *seg){
+  printf("%c--------+--------------+---------------+---------------+-----------------------+\n", 201);
+  printf("|  ID\t |    NOMBRE\t|   ENCENDIDO\t|    CONSUMO\t|    FECHA ENCENDIDO\t|\n");
+  printf("+--------+--------------+---------------+---------------+-----------------------+\n");
+  for (int i = 0; i<MAX_DISP;i++){
+    if (seg[i].consumo != -1)
+      {
+	printf("|  %d\t |%9.05s\t|%9.05s\t|%10.02f\t|    %02d/%02d/%04d %02d:%02d\t|\n",i , seg[i].nombre,seg[i].ON?"SÍ":"NO", seg[i].consumo,seg[i].day, seg[i].month, seg[i].year, seg[i].hour, seg[i].min);
+			    
+      }
+  }
+  printf("+--------+--------------+---------------+---------------+-----------------------+\n");
+}
+
+/*
+
+Función que borra todos los dispositivos asociados a un usuario
+
+*/
 void borraTodo(sem_t*mutex,sem_t*cambios,disp *seg){
 
-  char answer[1000];
+  char tecla[1000];
   
-  printf("¿Esta seguro de que desea borrar todos los sensores? y/n: ");
-  scanf("%999s",answer);
+  printf("¿Esta seguro de que desea borrar todos los sensores? s/n: ");
+  scanf("%999s",tecla);
   
-  if (answer[0] =='y'){
+  if (tecla[0] =='s'){
     sem_wait(mutex);
     for (int i = 0; i<MAX_DISP; i++){
       seg[i].consumo = -1;
@@ -349,62 +402,12 @@ void borraTodo(sem_t*mutex,sem_t*cambios,disp *seg){
   printf("\n");
 }
 
-void listaDispo(disp *seg){
-  printf("+----------+---------------+---------------+---------------+\n");
-  printf("|  ID\t | NOMBRE\t | CONSUMO\t | WORKING\t | FECHA ENCENDIDO\t |\n");
-  printf("+----------+---------------+---------------+---------------+\n");
-  for (int i = 0; i<MAX_DISP;i++){
-    if (seg[i].consumo != -1)
-      {
-	printf("| %d\t |%13.13s\t | %10.2f\t | %6.6s\t | %02d/%02d/%04d %02d:%02d\t \n",i,seg[i].nombre,seg[i].consumo,seg[i].ON?"TRUE":"FALSE", seg[i].day, seg[i].month, seg[i].year, seg[i].hour, seg[i].min);
-      }
-  }
-  printf("+--------+---------------+---------------+---------------+\n");
-}
+/*
 
-void conmutaDispo(sem_t*mutex,sem_t*cambios,disp *seg){
-  int hueco = -1;
-  listaDispo(seg);
-  printf("Introduzca el id del sensor a conmutar: ");
-  scanf("%d",&hueco);
-  
-  if (hueco<0||hueco>=MAX_DISP||seg[hueco].consumo==-1)
-    printf("No ha seleccionado un id válido\n");
-  else{
-    sem_wait(mutex);
-    if (seg[hueco].ON == 1){//Si es 1, lo ponemos a 0
-    
-      seg[hueco].year=0000;
-      seg[hueco].month=00;
-      seg[hueco].day=00;
-      seg[hueco].hour=00;
-      seg[hueco].min=00;
-      seg[hueco].ON = 0;
-      seg[hueco].opciones = CONMUTA;
+Función que devuelve el usuario seleccionado
 
-    }
-    else{//Si es 0, lo ponemos a 1
-    
-      tiempo = time(NULL);
-      fecha = localtime(&tiempo);
-    
-      seg[hueco].year = fecha->tm_year + 1900;
-      seg[hueco].month = fecha->tm_mon;
-      seg[hueco].day = fecha->tm_mday;
-      seg[hueco].hour = fecha->tm_hour;
-      seg[hueco].min = fecha->tm_min;
-      seg[hueco].ON = 1;
-      seg[hueco].opciones = CONMUTA;
-
-    }
-    sem_post(cambios);
-    sem_post(mutex);
-    printf("Sensor conmutado con exito");
-  }
-  printf("\n");
-}
-
-char seleccionaGestor(){
+*/
+char seleccionaUsuario(){
   sem_t*gestores;
   key_t clave; 
   int *seg = NULL;
@@ -468,4 +471,49 @@ char seleccionaGestor(){
   }
   return result[0];
 }
-								    
+	
+/*
+
+Función que inicia los recursos de la memoria compartida
+
+*/		
+int iniciaRecursos(char id,sem_t**cambios,sem_t**mutex,disp**seg){
+  key_t clave; 
+  int shmid;
+  int result = 1;
+  char claveMutex[] = {'m','u','t','e','x',id,'\0'};  
+  char claveCambios[] = {'c','a','m','b','i','o',id,'\0'};
+  char claveMemoria = id;
+
+  if ((*cambios = sem_open(claveCambios,0)) == SEM_FAILED){
+    result = 0;
+  }
+  else {
+    if ((*mutex = sem_open(claveMutex,0)) == SEM_FAILED){
+      result = 0;
+    }
+    else{   
+      clave=ftok(".",claveMemoria); 
+
+      if((shmid = shmget(clave,(MAX_DISP)*sizeof(disp),IPC_CREAT|0660))==-1) 
+	{ 
+	  result = 0;
+	} 
+      else{ 
+	if((*seg=shmat(shmid,NULL,0))== (disp *)-1) 
+	  result = 0;
+      }
+    }
+  }
+  return (result);
+}					    
+/*
+
+Función que cierra los recursos
+
+*/
+void cierraRecursos(sem_t**cambios,sem_t**mutex,disp**seg){
+  shmdt(*seg);	   
+  sem_close(*cambios);
+  sem_close(*mutex);
+}
