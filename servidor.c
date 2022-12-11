@@ -21,11 +21,13 @@
 #define MAX_GEST 5
 #define MAX_TOTAL MAX_DISP*MAX_GEST
 
-#define ANADIR 0
-#define ELIMINAR 1
-#define EXIT 2
-#define CONMUTA 3
-#define SIN_DEFINIR 10
+#define ANADIR 1
+#define CAMBIAESTADO 2
+#define ELIMINAR 3
+#define SALIR 4
+
+#define NO_ASIGNADO 10
+
 
 #define COSTE_KWH 0.21945
 /**
@@ -114,7 +116,8 @@ int main(){
 		{
 		  strcpy(predef[i].nombre,nombreEd[i]);
 		  predef[i].consumo=consumoEd[i];
-		  predef[i].opciones=SIN_DEFINIR;
+		  predef[i].opciones=NO_ASIGNADO;
+		  predef[i].ON=true;
 		/*  //Fecha
 		  tiempo = time(NULL);
   		  fecha = localtime(&tiempo);	
@@ -128,7 +131,7 @@ int main(){
 	      //Electrodomestico vacío
 	      disp vacio;
 	      vacio.consumo=-1;
-	      vacio.opciones=SIN_DEFINIR;
+	      vacio.opciones=NO_ASIGNADO;
 	      vacio.ON=false;
 	      vacio.year=0000;
 	      vacio.month=00;
@@ -153,8 +156,11 @@ int main(){
 	      }
 	      //Interfaz de bienvenida para el usuario:
 	      printf(".---.  _                                _    .-.      \n: .; ::_;                              :_;   : :      \n:   .'.-. .--. ,-.,- .-..-. .--. ,-.,-..-. .-' : .--. \n: .; :: :' '_.': ,. :: `; :' '_.': ,. :: :' .; :' .; :\n:___.':_;`.__.':_;:_;`.__.'`.__.':_;:_;:_;`.__.'`.__.'\n\n");
+	      printf("Los dispositivos predefinidos son:\n");
+	      imp_Tabla(tablaDispos,seg);
+		  
 	      //El servidor entrará en un bucle que no finalizará hasta que reciba
-	      //esa instrucción de un cliente.
+	      //esa instrucción de un cliente.  
 	      bool exit = false;
 	      while(exit==false)
 		{
@@ -175,12 +181,12 @@ int main(){
 		      else{
 		      		      
 			tablaDispos[hueco] = qbuffer.dispo;
-			tablaDispos[hueco].opciones = SIN_DEFINIR;
+			tablaDispos[hueco].opciones = NO_ASIGNADO;
 			
 			for (int i=0;i<MAX_TOTAL; i++){
 		      		if(strcmp(seg[i].nombre,qbuffer.dispo.nombre)==0){ //Actualizamos la MC
 		        	    seg[i] = qbuffer.dispo;
-		        	    seg[i].opciones = SIN_DEFINIR;
+		        	    seg[i].opciones = NO_ASIGNADO;
 		        	}
 		        }
 			
@@ -216,7 +222,7 @@ int main(){
 		      found=false;
 		      break;
 		    }
-		    case CONMUTA:{
+		    case CAMBIAESTADO:{
 		    
 		      bool found = false;	
 		      for (int i=0;i<MAX_TOTAL&&found==false;i++)
@@ -253,10 +259,9 @@ int main(){
 		    }
 		      // Para cerrar el programa, se elimina el contenido de la MC y de la cola, posteriormente, se sale
 		      // del bucle y se libera la memoria reservada.
-		    case EXIT:
+		    case SALIR:
 		      exit=true;
 		      printf("Cerrando servidor\n");
-
 		      break;
 	      
 		    default:
@@ -282,16 +287,7 @@ int main(){
  * así como el consumo total.
  */
 void imp_Tabla(disp tabla[MAX_TOTAL],disp *MC)
-{
-
-for (int i=0;i<20; i++){
-	printf("\nTabla i: %d", i);
-	printf("Consumo: %f, Opciones: %d, year: %d, month: %d, day: %d, hour: %d, min: %d", tabla[i].consumo, tabla[i].opciones, tabla[i].year, tabla[i].month, tabla[i].day, tabla[i].hour, tabla[i].min);
-	printf("\nMC i: %d", i);
-	printf("Consumo: %f, Opciones: %d, year: %d, month: %d, day: %d, hour: %d, min: %d", MC[i].consumo, MC[i].opciones, MC[i].year, MC[i].month, MC[i].day, MC[i].hour, MC[i].min);
-	printf("\n");
-}
-			
+{		
   //abro el semáforo MC
   sem_t *sem_MC=NULL;
   if((sem_MC=sem_open("MC", 0600))==NULL)
@@ -312,9 +308,10 @@ for (int i=0;i<20; i++){
       {
 	contador[i]=0;
       }
-    printf("+---------------+---------------+---------------+---------------+\n");
-    printf("|Nombre\t\t|Num. Disp.\t|Consumo I(kWh)\t|Consumo T(kWh)\t| Fecha encendido | \t\n");
-    printf("+---------------+---------------+---------------+---------------+\n");
+  printf("+---------------+-----------------------+-----------------------+-----------------------+-----------------------+\n");
+      printf("|    NOMBRE\t|    Nº DISPOSITIVOS\t| CONSUMO UNITARIO(kWh)\t|   CONSUMO TOTAL(kWh)\t|    FECHA ENCENDIDO\t|\n");
+
+  printf("+---------------+-----------------------+-----------------------+-----------------------+-----------------------+\n");
     
     //Repetiremos para cada elemento de la tabla un algoritmo que busca en memoria compartida al elemento cuyo nombre coincida.
     for (int i=0;i<MAX_TOTAL;i++)
@@ -339,11 +336,12 @@ for (int i=0;i<20; i++){
 	consumoTotal += contador[i]*MC[i].consumo;
 	if (sem_wait(sem_MC)!=0)
 	  printf("ERROR: el semáforo no ha podido ser subido\n");
-	printf("|%13.13s\t|%13d\t|%9.2f\t|%9.2f\t|%02d/%02d/%04d %02d:%02d\t\n",MC[i].nombre,contador[i],MC[i].consumo,(contador[i]*MC[i].consumo),MC[i].day, MC[i].month, MC[i].year, MC[i].hour, MC[i].min);
+	printf("|%9.05s\t|%12d\t\t|%14.2f\t\t|%14.2f\t\t|    %02d/%02d/%04d %02d:%02d\t|\n",MC[i].nombre,contador[i],MC[i].consumo,(contador[i]*MC[i].consumo),MC[i].day, MC[i].month, MC[i].year, MC[i].hour, MC[i].min);
 	if (sem_post(sem_MC)!=0)
 	  printf("ERROR: el semáforo no ha podido ser bajado\n");
       }
-    printf("+---------------+---------------+---------------+---------------+\nConsumo total: %9.2f KWh | \t Coste KWh: %.5f €/KWh |\t Precio total: %.2f €/h \t |\n\n\n\n",consumoTotal, COSTE_KWH, COSTE_KWH*consumoTotal);
+    printf("+---------------+-----------------------+-----------------------+-----------------------+-----------------------+\n");
+    printf("Consumo total: %10.2f KWh \t|\tCoste KWh: %10.5f €/KWh \t|\tPrecio total: %10.2f €/h \t|\n\n\n\n\n",consumoTotal, COSTE_KWH, COSTE_KWH*consumoTotal);
   } 
 }
 

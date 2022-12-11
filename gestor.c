@@ -17,11 +17,12 @@
 #define MAX_GEST 5
 #define MAX_TAM_NOMBRE 20
 
-#define ANADIR 0
-#define ELIMINAR 1
-#define EXIT 2
-#define CONMUTA 3
-#define SIN_DEFINIR 10
+#define ANADIR 1
+#define CAMBIAESTADO 2
+#define ELIMINAR 3
+#define SALIR 4
+
+#define NO_ASIGNADO 10
 
 typedef struct dispositivo{
   char nombre[MAX_TAM_NOMBRE];
@@ -37,7 +38,7 @@ typedef struct dispositivo{
   int min;
 }disp;
 
-struct mymsgbuf{ 
+struct buff_msg{ 
    long mtype; 
    disp dispo; 
 }; 
@@ -47,13 +48,13 @@ time_t tiempo;
 struct tm *fecha;
 
 int autodestruction = 0;
-int escr_msg(int qid,struct mymsgbuf *qbuf); 
-int leer_msg(int qid,long type,struct mymsgbuf *qbuf); 
+int escr_msg(int qid,struct buff_msg *qbuf); 
+int leer_msg(int qid,long type,struct buff_msg *qbuf); 
 
 void iniciaRecursos(char id);
 void eliminaRecursos(char id);
 void iniciaDestruccion();
-int interfaz_ini(char id);
+int interfaz_inicio(char id);
 
 char obtenerId();
 void liberarId(char id);
@@ -71,7 +72,7 @@ int main (){
 
   key_t claveCola; 
   int msgqueue_id; 
-  struct mymsgbuf qbuffer;
+  struct buff_msg qbuffer;
 
   if (id == '!')
     printf("Se ha producido un error, ya hay %d gestores en uso\n",MAX_GEST);
@@ -117,7 +118,7 @@ int main (){
 		sem_wait(mutex);
 		for (int i=0;i<MAX_DISP;i++){
 		  seg[i].consumo=-1;
-		  seg[i].opciones = SIN_DEFINIR;
+		  seg[i].opciones = NO_ASIGNADO;
 		  seg[i].year=0000;
 		  seg[i].month=00;
 		  seg[i].day=00;
@@ -152,12 +153,12 @@ int main (){
 		      sem_wait(mutex);
 		      for (int i=0;i<MAX_DISP;i++){
 			tabla[i]=seg[i];
-			seg[i].opciones = SIN_DEFINIR;
+			seg[i].opciones = NO_ASIGNADO;
 		      }
 		      sem_post(mutex);
 
 		      for (int i = 0; i<MAX_DISP; i++){
-			if (tabla[i].opciones != SIN_DEFINIR){
+			if (tabla[i].opciones != NO_ASIGNADO){
 			  qbuffer.mtype = 1;
 			  qbuffer.dispo = tabla[i];
 			  sem_wait(cola);
@@ -175,21 +176,21 @@ int main (){
 		 
 		  default:   /* padre o interfaz */ 		 
 		    while (autodestruction==0){
-		      int select = interfaz_ini(id);
+		      int select = interfaz_inicio(id);
 		      switch(select){
 		      case(1):
 			{
-			  printf("+---------------+---------------+---------------+\n");
-			  printf("| NOMBRE\t| CONSUMO\t| WORKING\t| FECHA ENCENDIDO \t|\n");
-			  printf("+---------------+---------------+---------------+\n");
+			  printf("+---------------+---------------+---------------+-----------------------+\n");
+  printf("|    NOMBRE\t|   ENCENDIDO\t|    CONSUMO\t|    FECHA ENCENDIDO\t|\n");
+			  printf("+---------------+---------------+---------------+-----------------------+\n");
 			  for (int i = 0; i<MAX_DISP;i++){
 			    if (seg[i].consumo != -1)
 			      {
-				printf("|%13.13s\t|%10.2f\t|%10.10s\t|%02d/%02d/%04d %02d:%02d\t\n",seg[i].nombre,seg[i].consumo,seg[i].ON?"TRUE":"FALSE", seg[i].day, seg[i].month, seg[i].year, seg[i].hour, seg[i].min);
+				printf("|%9.05s\t|%9.05s\t|%10.02f\t|    %02d/%02d/%04d %02d:%02d\t|\n",seg[i].nombre,seg[i].ON?"SÍ":"NO", seg[i].consumo,seg[i].day, seg[i].month, seg[i].year, seg[i].hour, seg[i].min);
 			    
 			      }
 			  }
-			  printf("+---------------+---------------+---------------+\n");
+			  printf("+---------------+---------------+---------------+-----------------------+\n");
 			  break;
 			}
 		      case(2):
@@ -211,7 +212,7 @@ int main (){
 			{
 			  autodestruction = 1;
 			  sem_wait(mutex);
-			  seg[0].opciones = EXIT;
+			  seg[0].opciones = SALIR;
 			  sem_post(mutex);
 			  sem_post(cambios);
 			  sleep(3);
@@ -237,6 +238,24 @@ int main (){
     }
   }
   return(0);
+}
+
+int interfaz_inicio(char id){
+   int select = 0;
+   printf("\nTERMINAL DEL GESTOR %c\n",id);
+   printf("Seleccione que desea hacer:\n");
+   printf("1->Listar mis dispositivos\n");
+   printf("2->Eliminar gestor y dispositivos del servidor\n");
+   printf("3->Eliminar gestor y cerrar sevidor\n\n");
+   printf("Opción: ");
+   scanf("%d",&select);
+   printf("\n");
+   while ((select<1) || (select>3)){
+     printf("Por favor, introduzca una opción adecuada: ");
+     scanf("%d",&select);
+     printf("\n");
+   }
+   return (select);
 }
 
 char obtenerId(){
@@ -315,7 +334,7 @@ void liberarId(char id){
   }
 }
 
-int escr_msg(int qid,struct mymsgbuf *qbuf) 
+int escr_msg(int qid,struct buff_msg *qbuf) 
 { 
    int resultado;
    
@@ -325,7 +344,7 @@ int escr_msg(int qid,struct mymsgbuf *qbuf)
 
 }
 
-int leer_msg(int qid,long type,struct mymsgbuf *qbuf) 
+int leer_msg(int qid,long type,struct buff_msg *qbuf) 
 { 
    int resultado;
    
@@ -402,20 +421,4 @@ void iniciaDestruccion(void){
   autodestruction = 1;
 }
 
-int interfaz_ini(char id){
-   int select = 0;
-   printf("\nTERMINAL DEL GESTOR %c\n",id);
-   printf("Seleccione que desea hacer:\n");
-   printf("1.-Listar mis dispositivos\n");
-   printf("2.-Eliminar gestor y dispositivos del servidor\n");
-   printf("3.-Eliminar gestor y cerrar sevidor\n\n");
-   printf("Opción: ");
-   scanf("%d",&select);
-   printf("\n");
-   while ((select>3) || (select<1)){
-     printf("Por favor, introduzca una opción adecuada: ");
-     scanf("%d",&select);
-     printf("\n");
-   }
-   return (select);
-}
+
