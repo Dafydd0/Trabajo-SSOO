@@ -14,23 +14,25 @@
 
 #define TAM_BUFFER_MC 20
 #define NUM_SEMAFOROS 2
-#define NUM_PREDEFINIDOS 6
+#define NUM_PREDEFINIDOS 4
 #define MAX_TAM_NOMBRE 20
 
 #define MAX_DISP 20
-#define MAX_GEST 5
-#define MAX_TOTAL MAX_DISP*MAX_GEST
+#define MAX_USUARIOS 5
+#define MAX_TOTAL MAX_DISP*MAX_USUARIOS
 
-#define ANADIR 0
-#define ELIMINAR 1
-#define EXIT 2
-#define CONMUTA 3
-#define RESET 4
-#define SIN_DEFINIR 10
+
+#define ANADIR 1
+#define CAMBIAESTADO 2
+#define ELIMINAR 3
+#define SALIR 4
+
+#define NO_ASIGNADO 10
 
 #define COSTE_KWH 0.21945
+
 /**
- * Programa servidor de domótica.
+ * Programa display.
  * Su función es servir de central de control para los diversos clientes,
  * debe crear la cola de mensajes y la zona de memoria compartida a utilizar,
  * así como imprimir por pantalla una tabla que se vaya actualizando
@@ -40,8 +42,8 @@
 
 
 /**
- * Estructura electodoméstico.
- * Contiene el nombre y el consumo de cada electrodoméstico que se defina.
+ * Estructura dispositivo.
+ * Contiene el nombre y el consumo de cada dispositivo que se registre.
  */
 typedef struct dispositivo{
   char nombre[MAX_TAM_NOMBRE];
@@ -108,14 +110,14 @@ int main(){
 	      //Elementos predefinidos
 	      
 	      disp predef[NUM_PREDEFINIDOS];
-	      char *nombreEd[NUM_PREDEFINIDOS]={"bombilla","ventilador","lavadora","lavavajillas","TV","nevera"};
-	      float consumoEd[NUM_PREDEFINIDOS]={0.06,0.3,1.5,2.0,0.25,0.35};
+	      char *nombreDispPredef[NUM_PREDEFINIDOS]={"impresora","PC","calefacción","aire"};
+	      float consumoDispPredef[NUM_PREDEFINIDOS]={0.09,0.28,5.6,4.8};
 
 	      for(int i=0;i<NUM_PREDEFINIDOS;i++)
 		{
-		  strcpy(predef[i].nombre,nombreEd[i]);
-		  predef[i].consumo=consumoEd[i];
-		  predef[i].opciones=SIN_DEFINIR;
+		  strcpy(predef[i].nombre,nombreDispPredef[i]);
+		  predef[i].consumo=consumoDispPredef[i];
+		  predef[i].opciones=NO_ASIGNADO;
 		  predef[i].ON=true;
 		/*  //Fecha
 		  tiempo = time(NULL);
@@ -127,10 +129,10 @@ int main(){
 		  predef[i].hour = 00;
 		  predef[i].min = 00;
 		}
-	      //Electrodomestico vacío
+	      //Dispositivo vacío
 	      disp vacio;
 	      vacio.consumo=-1;
-	      vacio.opciones=SIN_DEFINIR;
+	      vacio.opciones=NO_ASIGNADO;
 	      vacio.ON=false;
 	      vacio.year=0000;
 	      vacio.month=00;
@@ -139,7 +141,7 @@ int main(){
 	      vacio.min=00;
 	      strcpy(vacio.nombre,"void");
 
-	      //Añadimos los electrodomesticos predifinidos para inicializar la memoria compartida
+	      //Añadimos los dispositivos predifinidos para inicializar la memoria compartida
 	      sem_wait(semMC);
 	      for (int i=0; i<NUM_PREDEFINIDOS; i++){
 		seg[i] = predef[i];
@@ -148,18 +150,18 @@ int main(){
 		seg[i]=vacio;
 	      sem_post(semMC);
 
-	      //Creamos una tabla local que almacenara los dispositivos de la casa y la inicailizamos vacía
+	      //Creamos una tabla local que almacene los dispositivos de la empresa que queramos controlar y la inicailizamos vacía
 	      disp tablaDispos[MAX_TOTAL];
 	      for (int i=0;i<MAX_TOTAL;i++){
 		tablaDispos[i] = vacio;
 	      }
-	      //Interfaz de bienvenida para el usuario:
-	      printf(".---.  _                                _    .-.      \n: .; ::_;                              :_;   : :      \n:   .'.-. .--. ,-.,- .-..-. .--. ,-.,-..-. .-' : .--. \n: .; :: :' '_.': ,. :: `; :' '_.': ,. :: :' .; :' .; :\n:___.':_;`.__.':_;:_;`.__.'`.__.':_;:_;:_;`.__.'`.__.'\n\n");
+	      printf("\n");
 	      printf("Los dispositivos predefinidos son:\n");
 	      imp_Tabla(tablaDispos,seg);
+	      printf("\n\n");
+	      printf("Esperando modificaciones...\n");
 		  
-	      //El servidor entrará en un bucle que no finalizará hasta que reciba
-	      //esa instrucción de un cliente.  
+	      //El display entrará en un bucle que no finalizará hasta que reciba esa instrucción de un cliente.  
 	      bool exit = false;
 	      while(exit==false)
 		{
@@ -167,7 +169,7 @@ int main(){
 		  switch(qbuffer.dispo.opciones)
 		    {
 
-		      // Para añadir un nuevo electrodoméstico, lo escribimos en la tabla local y pedimos que nos la imprima actualizada
+		      // Para añadir un nuevo dispositivo, lo escribimos en la tabla local y pedimos que nos la imprima actualizada
 		    case ANADIR:{
 		      int hueco = -1;
 		      for (int i=0;i<MAX_TOTAL && hueco == -1; i++){
@@ -176,16 +178,16 @@ int main(){
 			
 		      }
 		      if (hueco == -1)
-			printf("ERROR: no queda hueco en la tabla\n");
+			printf("ERROR: la tabla está completa. Borre algún elemento para añadir otro\n");
 		      else{
 		      		      
 			tablaDispos[hueco] = qbuffer.dispo;
-			tablaDispos[hueco].opciones = SIN_DEFINIR;
+			tablaDispos[hueco].opciones = NO_ASIGNADO;
 			
 			for (int i=0;i<MAX_TOTAL; i++){
 		      		if(strcmp(seg[i].nombre,qbuffer.dispo.nombre)==0){ //Actualizamos la MC
 		        	    seg[i] = qbuffer.dispo;
-		        	    seg[i].opciones = SIN_DEFINIR;
+		        	    seg[i].opciones = NO_ASIGNADO;
 		        	}
 		        }
 			
@@ -193,9 +195,8 @@ int main(){
 		      }
 		      break;
 		    }
-		      // Para eliminar un dispositivo de la lista, identifica su nombre y busca si hay algún dispositivo
-		      // de ese tipo almacenado, si es así, sustituye su espacio en la cola por un electrodomestico del tipo
-		      // "vacio"
+		      // Para eliminar un dispositivo de la lista, identifica su nombre y busca si hay algún dispositivo de ese tipo almacenado, y si es así, sustituye su espacio en la cola por un dispositivo del tipo vacio
+		      
 		    case ELIMINAR:{
 		      bool found = false;
 		      for (int i=0;i<MAX_TOTAL&&found==false;i++)
@@ -210,14 +211,18 @@ int main(){
 			for (int i=0;i<MAX_TOTAL;i++){
 
 				if(strcmp(seg[i].nombre, qbuffer.dispo.nombre) == 0 ){
-			   	      seg[i] = vacio;
+					seg[i].year = qbuffer.dispo.year;
+			      		seg[i].month = qbuffer.dispo.month;
+				        seg[i].day = qbuffer.dispo.day;
+				        seg[i].hour = qbuffer.dispo.hour;
+				        seg[i].min = qbuffer.dispo.min;
 			   	      }
 			}
 		      imp_Tabla(tablaDispos,seg);
 		      found=false;
 		      break;
 		    }
-		    case CONMUTA:{
+		    case CAMBIAESTADO:{
 		    
 		      bool found = false;	
 		      for (int i=0;i<MAX_TOTAL&&found==false;i++)
@@ -252,19 +257,13 @@ int main(){
 		      found=false;
 		      break;
 		    }
-		      // Para cerrar el programa, se elimina el contenido de la MC y de la cola, posteriormente, se sale
-		      // del bucle y se libera la memoria reservada.
-		    case EXIT:
+		      //Para cerrar el programa, se elimina el contenido de la MC y de la cola, posteriormente, se sale del bucle y se libera la memoria reservada.
+		      
+		    case SALIR:
 		      exit=true;
 		      printf("Cerrando servidor\n");
 		      break;
-		
-		    case RESET:
-			for (int i=0; i<MAX_TOTAL; i++)
-			   tablaDispos[i]=vacio;
-			imp_Tabla(tablaDispos,seg);
-			break;
-	      
+
 		    default:
 		      printf("Algo raro ha sucedido...\n%s.%s=%d",qbuffer.dispo.nombre,"opciones",qbuffer.dispo.opciones);
 		      break;
@@ -284,20 +283,10 @@ int main(){
   
 /**
  * Función imp_tabla
- * Imprime por pantalla una tabla con todos los dispositivos de cada tipo y el consumo de cada uno de ellos,
- * así como el consumo total.
+ * Imprime por pantalla una tabla con todos los dispositivos de cada tipo y el consumo de cada uno de ellos, así como el consumo total.
  */
 void imp_Tabla(disp tabla[MAX_TOTAL],disp *MC)
-{
-
-for (int i=0;i<20; i++){
-	printf("\nTabla i: %d", i);
-	printf("Consumo: %f, Opciones: %d, year: %d, month: %d, day: %d, hour: %d, min: %d", tabla[i].consumo, tabla[i].opciones, tabla[i].year, tabla[i].month, tabla[i].day, tabla[i].hour, tabla[i].min);
-	printf("\nMC i: %d", i);
-	printf("Consumo: %f, Opciones: %d, year: %d, month: %d, day: %d, hour: %d, min: %d", MC[i].consumo, MC[i].opciones, MC[i].year, MC[i].month, MC[i].day, MC[i].hour, MC[i].min);
-	printf("\n");
-}
-			
+{		
   //abro el semáforo MC
   sem_t *sem_MC=NULL;
   if((sem_MC=sem_open("MC", 0600))==NULL)
@@ -318,9 +307,10 @@ for (int i=0;i<20; i++){
       {
 	contador[i]=0;
       }
-    printf("+---------------+---------------+---------------+---------------+\n");
-    printf("|Nombre\t\t|Num. Disp.\t|Consumo I(kWh)\t|Consumo T(kWh)\t| Fecha encendido | \t\n");
-    printf("+---------------+---------------+---------------+---------------+\n");
+  printf("+---------------+-----------------------+-----------------------+-----------------------+-----------------------+\n");
+      printf("|    NOMBRE\t|    Nº DISPOSITIVOS\t| CONSUMO UNITARIO(kWh)\t|   CONSUMO TOTAL(kWh)\t|    FECHA ENCENDIDO\t|\n");
+
+  printf("+---------------+-----------------------+-----------------------+-----------------------+-----------------------+\n");
     
     //Repetiremos para cada elemento de la tabla un algoritmo que busca en memoria compartida al elemento cuyo nombre coincida.
     for (int i=0;i<MAX_TOTAL;i++)
@@ -345,25 +335,23 @@ for (int i=0;i<20; i++){
 	consumoTotal += contador[i]*MC[i].consumo;
 	if (sem_wait(sem_MC)!=0)
 	  printf("ERROR: el semáforo no ha podido ser subido\n");
-	printf("|%13.13s\t|%13d\t|%9.2f\t|%9.2f\t|%02d/%02d/%04d %02d:%02d\t\n",MC[i].nombre,contador[i],MC[i].consumo,(contador[i]*MC[i].consumo),MC[i].day, MC[i].month, MC[i].year, MC[i].hour, MC[i].min);
+	printf("|%13.13s\t|%13d\t\t|%9.2f\t\t|%9.2f\t\t|%02d/%02d/%04d %02d:%02d\t|\n",MC[i].nombre,contador[i],MC[i].consumo,(contador[i]*MC[i].consumo),MC[i].day, MC[i].month, MC[i].year, MC[i].hour, MC[i].min);
 	if (sem_post(sem_MC)!=0)
 	  printf("ERROR: el semáforo no ha podido ser bajado\n");
       }
-    printf("+---------------+---------------+---------------+---------------+\nConsumo total: %9.2f KWh | \t Coste KWh: %.5f €/KWh |\t Precio total: %.2f €/h \t |\n\n\n\n",consumoTotal, COSTE_KWH, COSTE_KWH*consumoTotal);
+    printf("+---------------+-----------------------+-----------------------+-----------------------+-----------------------+\n");
+    printf("Consumo total: %10.2f KWh \t|\tCoste KWh: %10.5f €/KWh \t|\tPrecio total: %10.2f €/h \t|\n\n\n\n\n",consumoTotal, COSTE_KWH, COSTE_KWH*consumoTotal);
   } 
 }
 
 void iniciaRecursos(){
   //Creamos el semaforo
-  if (sem_open("MC",O_CREAT,0600,1) != SEM_FAILED){
-    // printf ("Semáforo MC creado con éxito\n");
-  }
+  if (sem_open("MC",O_CREAT,0600,1) != SEM_FAILED){  }
   else{
     printf("Error en la creación del semáforo MC\n");
   }
     //Creamos el semaforo
   if (sem_open("cola",O_CREAT,0600,1) != SEM_FAILED){
-    //printf ("Semáforo cola creado con éxito\n");
   }
   else{
     printf("Error en la creación del semáforo cola\n");
@@ -383,47 +371,40 @@ void iniciaRecursos(){
     //printf("Nuevo segmento creado\n");    
   }
 
-  //Memoria compartida y semaforo para la asignacion de gestores
+  //Memoria compartida y semaforo para la asignacion de usuarios
   
     //Creamos el semaforo
-  if (sem_open("gestores",O_CREAT,0600,1) != SEM_FAILED){
-    //printf ("Semáforo gestores creado con éxito\n");
+  if (sem_open("usuarios",O_CREAT,0600,1) != SEM_FAILED){
   }
   else{
-    printf("Error en la creación del semáforo gestores\n");
+    printf("Error en la creación del semáforo usuarios\n");
   }
-  key_t claveGest; 
-  int shmidGest;
+  key_t claveUsu; 
+  int shmidUsu;
   //Creamos la memoria compartida
-  claveGest=ftok(".",'G'); 
+  claveUsu=ftok(".",'U'); 
 
-  shmidGest = shmget(claveGest,(MAX_GEST)*sizeof(int),IPC_CREAT|IPC_EXCL|0660); 
+  shmidUsu = shmget(claveUsu,(MAX_USUARIOS)*sizeof(int),IPC_CREAT|IPC_EXCL|0660); 
   
-  int *segGest = shmat(shmidGest,NULL,0);
-  for (int i=0; i<MAX_GEST; i++)
+  int *segUsu = shmat(shmidUsu,NULL,0);
+  for (int i=0; i<MAX_USUARIOS; i++)
     {
-      segGest[i]= 0;
-      //printf("%d\n",segGest[i]);
+      segUsu[i]= 0;
     }
-  shmdt(segGest);
-  //printf("Nuevo segmento creado\n");    
+  shmdt(segUsu);    
 }
 
 void eliminaRecursos(){
   //Cerramos el semaforo
   if (sem_unlink("cola") == 0){
-    //printf("El semáforo cola se eliminó con éxito\n");
   }
   else{
-    //printf("Error al eliminar el semáforo cola\n");
   }
 
     //Cerramos el semaforo
   if (sem_unlink("MC") == 0){
-    //printf("El semáforo MC se eliminó con éxito\n");
   }
   else{
-    //printf("Error al eliminar el semáforo MC\n");
   }
      
   key_t clave; 
@@ -437,8 +418,7 @@ void eliminaRecursos(){
       printf("No se ha podido obtener el id del segmento de memoria\n"); 
     } 
   else{ 
-    shmctl(shmid,IPC_RMID,NULL);
-    //printf("Segmento borrado con éxito\n");   
+    shmctl(shmid,IPC_RMID,NULL);   
   }
 
   //Cerramos la cola
@@ -447,27 +427,24 @@ void eliminaRecursos(){
   msgctl(msgqueue_id,IPC_RMID,NULL);
 
   
-  //Memoria compartida y semaforo para la asignacion de gestores
+  //Memoria compartida y semaforo para la asignacion de usuarios
   
   //Eliminamos el semaforo
-  if (sem_unlink("gestores")== 0){
-    // printf ("Semáforo gestores eliminado con éxito\n");
+  if (sem_unlink("usuarios")== 0){
   }
   else{
-    //printf("Error en la eliminacion del semáforo gestores\n");
   }
-  key_t claveGest; 
-  int shmidGest;
+  key_t claveUsu; 
+  int shmidUsu;
   //Eliminamos la memoria compartida
-  claveGest=ftok(".",'G'); 
+  claveUsu=ftok(".",'U'); 
 
-  if((shmidGest = shmget(claveGest,(MAX_GEST)*sizeof(int),IPC_CREAT|0660))==-1) 
+  if((shmidUsu = shmget(claveUsu,(MAX_USUARIOS)*sizeof(int),IPC_CREAT|0660))==-1) 
     { 
-      printf("El segmento de memoria gestores ya existe\n"); 
+      printf("El segmento de memoria usuarios ya existe\n"); 
     } 
   else{
-    shmctl(shmidGest,IPC_RMID,NULL);
-    //printf("Segmento gestores borrado con éxito\n");
+    shmctl(shmidUsu,IPC_RMID,NULL);
     
   }
 }
