@@ -14,14 +14,15 @@
 #include <stdbool.h>
 
 #define MAX_DISP 20
-#define MAX_GEST 5
+#define MAX_USUARIOS 5
 #define MAX_TAM_NOMBRE 20
 
-#define ANADIR 0
-#define ELIMINAR 1
-#define EXIT 2
-#define CONMUTA 3
-#define SIN_DEFINIR 10
+#define ANADIR 1
+#define CAMBIAESTADO 2
+#define ELIMINAR 3
+#define SALIR 4
+
+#define NO_ASIGNADO 10
 
 typedef struct dispositivo{
   char nombre[MAX_TAM_NOMBRE];
@@ -37,7 +38,7 @@ typedef struct dispositivo{
   int min;
 }disp;
 
-struct mymsgbuf{ 
+struct buff_msg{ 
    long mtype; 
    disp dispo; 
 }; 
@@ -47,18 +48,18 @@ time_t tiempo;
 struct tm *fecha;
 
 int autodestruction = 0;
-int escr_msg(int qid,struct mymsgbuf *qbuf); 
-int leer_msg(int qid,long type,struct mymsgbuf *qbuf); 
+int escr_msg(int qid,struct buff_msg *qbuf); 
+int leer_msg(int qid,long type,struct buff_msg *qbuf); 
 
 void iniciaRecursos(char id);
 void eliminaRecursos(char id);
 void iniciaDestruccion();
-int interfaz_ini(char id);
+int interfaz_inicio(char id);
 
 char obtenerId();
 void liberarId(char id);
 
-int main (){  
+int main (){
   char id = obtenerId();
   iniciaRecursos(id);
   sem_t *cambios = NULL;
@@ -71,16 +72,15 @@ int main (){
 
   key_t claveCola; 
   int msgqueue_id; 
-  struct mymsgbuf qbuffer;
+  struct buff_msg qbuffer;
 
   if (id == '!')
-    printf("Se ha producido un error, ya hay %d gestores en uso\n",MAX_GEST);
+    printf("Se ha producido un error, ya hay %d usuarios en uso\n",MAX_USUARIOS);
   else{
-    //Preparamos las claves personalizadas del gestor;
+    //Preparamos las claves personalizadas del usuario;
     char claveMutex[] = {'m','u','t','e','x',id,'\0'};  
     char claveCambios[] = {'c','a','m','b','i','o',id,'\0'};
     char claveMemoria = id;
-    //printf("Clave mutex: %s, clave cambios: %s, clave memoria %c\n",claveMutex,claveCambios,claveMemoria);
     claveCola=ftok(".",'q');
     if ((msgqueue_id=msgget(claveCola,IPC_CREAT|0660))==-1) 
       { 
@@ -91,12 +91,10 @@ int main (){
 	printf("Error al abrir el semaforo\n");
       }
       else{
-	//printf("Cambios creado\n");
 	if ((mutex = sem_open(claveMutex,0)) == SEM_FAILED){
 	  printf("Error al abrir el semaforo\n");
 	}
 	else{
-	  //printf("Mutex creado\n");
 	  if ((cola = sem_open("cola",0)) == SEM_FAILED){
 	    printf("Error al abrir el semaforo\n");
 	  }
@@ -117,7 +115,7 @@ int main (){
 		sem_wait(mutex);
 		for (int i=0;i<MAX_DISP;i++){
 		  seg[i].consumo=-1;
-		  seg[i].opciones = SIN_DEFINIR;
+		  seg[i].opciones = NO_ASIGNADO;
 		  seg[i].year=0000;
 		  seg[i].month=00;
 		  seg[i].day=00;
@@ -137,27 +135,24 @@ int main (){
 		    break;
 		 
 		  case 0:    /* proceso hijo o actualizador*/ 
-		    /*Este proceso se va a encargar de revisar actualizaciones en los dispositivos
-		      registrados y reflejarlo en el servidor, cuando reciba una señal 1  procedera a 
-		      finalizar su ejecucion*/
+		    /*Este proceso se va a encargar de revisar actualizaciones en los dispositivos registrados y reflejarlo en el servidor, cuando reciba una señal 1  procedera a finalizar su ejecucion*/
 		    act.sa_handler = iniciaDestruccion ; /*función a ejecutar*/ 
 		    act.sa_flags = 0;                    /* ninguna acción especifica */ 
 		    sigemptyset(&act.sa_mask);
 		    sigaction(1,&act, NULL);
 		    disp tabla[MAX_DISP];
-		    //Entramos en el bucle infinito, a la espera de cambios en la mc, cuando los hay encontramos que ha cambiado
-		    //y lo comunicamos al servidor por colas de mensajes
+		    //Entramos en el bucle infinito, a la espera de cambios en la mc, cuando los hay encontramos que ha cambiado y lo comunicamos al display por colas de mensajes
 		    while (autodestruction==0){
 		      sem_wait(cambios);
 		      sem_wait(mutex);
 		      for (int i=0;i<MAX_DISP;i++){
 			tabla[i]=seg[i];
-			seg[i].opciones = SIN_DEFINIR;
+			seg[i].opciones = NO_ASIGNADO;
 		      }
 		      sem_post(mutex);
 
 		      for (int i = 0; i<MAX_DISP; i++){
-			if (tabla[i].opciones != SIN_DEFINIR){
+			if (tabla[i].opciones != NO_ASIGNADO){
 			  qbuffer.mtype = 1;
 			  qbuffer.dispo = tabla[i];
 			  sem_wait(cola);
@@ -175,21 +170,21 @@ int main (){
 		 
 		  default:   /* padre o interfaz */ 		 
 		    while (autodestruction==0){
-		      int select = interfaz_ini(id);
+		      int select = interfaz_inicio(id);
 		      switch(select){
 		      case(1):
 			{
-			  printf("+---------------+---------------+---------------+\n");
-			  printf("| NOMBRE\t| CONSUMO\t| WORKING\t| FECHA ENCENDIDO \t|\n");
-			  printf("+---------------+---------------+---------------+\n");
+			  printf("+---------------+---------------+---------------+-----------------------+\n");
+  printf("|    NOMBRE\t|   ENCENDIDO\t|    CONSUMO\t|    FECHA ENCENDIDO\t|\n");
+			  printf("+---------------+---------------+---------------+-----------------------+\n");
 			  for (int i = 0; i<MAX_DISP;i++){
 			    if (seg[i].consumo != -1)
 			      {
-				printf("|%13.13s\t|%10.2f\t|%10.10s\t|%02d/%02d/%04d %02d:%02d\t\n",seg[i].nombre,seg[i].consumo,seg[i].ON?"TRUE":"FALSE", seg[i].day, seg[i].month, seg[i].year, seg[i].hour, seg[i].min);
+				printf("|%13.13s\t|%10.10s\t|%10.2f\t|    %02d/%02d/%04d %02d:%02d\t|\n",seg[i].nombre,seg[i].ON?"SÍ":"NO", seg[i].consumo,seg[i].day, seg[i].month, seg[i].year, seg[i].hour, seg[i].min);
 			    
 			      }
 			  }
-			  printf("+---------------+---------------+---------------+\n");
+			  printf("+---------------+---------------+---------------+-----------------------+\n");
 			  break;
 			}
 		      case(2):
@@ -211,7 +206,7 @@ int main (){
 			{
 			  autodestruction = 1;
 			  sem_wait(mutex);
-			  seg[0].opciones = EXIT;
+			  seg[0].opciones = SALIR;
 			  sem_post(mutex);
 			  sem_post(cambios);
 			  sleep(3);
@@ -239,21 +234,39 @@ int main (){
   return(0);
 }
 
+int interfaz_inicio(char id){
+   int select = 0;
+   printf("\nUsuario %c preparado para operar:\n\n",id);
+   printf("Seleccione la acción a realizar:\n");
+   printf("1->Listar mis dispositivos\n");
+   printf("2->Eliminar usuario y dispositivos del servidor\n");
+   printf("3->Eliminar usuario y cerrar sevidor\n\n");
+   printf("Opción: ");
+   scanf("%d",&select);
+   printf("\n");
+   while ((select<1) || (select>3)){
+     printf("Por favor, introduzca una opción adecuada: ");
+     scanf("%d",&select);
+     printf("\n");
+   }
+   return (select);
+}
+
 char obtenerId(){
-  sem_t*gestores;
+  sem_t*usuarios;
   key_t clave; 
   int *seg = NULL;
   int shmid;
 
   int hueco= -1;
   
-  if ((gestores = sem_open("gestores",0)) == SEM_FAILED){
+  if ((usuarios = sem_open("usuarios",0)) == SEM_FAILED){
     printf("Error al abrir el semaforo\n");
   }
   else{   
-    clave=ftok(".",'G'); 
+    clave=ftok(".",'U'); 
 
-    if((shmid = shmget(clave,(MAX_GEST)*sizeof(int),IPC_CREAT|0660))==-1) 
+    if((shmid = shmget(clave,(MAX_USUARIOS)*sizeof(int),IPC_CREAT|0660))==-1) 
       { 
 	printf("No se pudo obener la id del segmento de memoria compartida\n"); 
       } 
@@ -261,17 +274,17 @@ char obtenerId(){
       if((seg=shmat(shmid,NULL,0))== (int *)-1) 
 	printf("Error al mapear el segmento\n"); 
       else{
-	sem_wait(gestores);
-	for (int i=0; i<MAX_GEST&& hueco == -1; i++){
+	sem_wait(usuarios);
+	for (int i=0; i<MAX_USUARIOS && hueco == -1; i++){
 	  if (seg[i] == 0){
 	    hueco = i;
 	    seg[i]=1;
 	  }
 	}
-	sem_post(gestores);
+	sem_post(usuarios);
 	shmdt(seg);
       }
-      sem_close(gestores);
+      sem_close(usuarios);
     }
   }
   char result;
@@ -280,23 +293,23 @@ char obtenerId(){
   else
     result = hueco +48;
   return result;
-}
+  }
 
 void liberarId(char id){
-  sem_t*gestores;
+  sem_t*usuarios;
   key_t clave; 
   int *seg = NULL;
   int shmid;
 
   int hueco ;
   
-  if ((gestores = sem_open("gestores",0)) == SEM_FAILED){
+  if ((usuarios = sem_open("usuarios",0)) == SEM_FAILED){
     printf("Error al abrir el semaforo\n");
   }
   else{   
     clave=ftok(".",'G'); 
 
-    if((shmid = shmget(clave,(MAX_GEST)*sizeof(int),IPC_CREAT|0660))==-1) 
+    if((shmid = shmget(clave,(MAX_USUARIOS)*sizeof(int),IPC_CREAT|0660))==-1) 
       { 
 	printf("No se pudo obener la id del segmento de memoria compartida\n"); 
       } 
@@ -305,17 +318,17 @@ void liberarId(char id){
 	printf("Error al mapear el segmento\n"); 
       else{
 	hueco = id - 48;
-	sem_wait(gestores);
+	sem_wait(usuarios);
 	seg[hueco]=0;
-	sem_post(gestores);
+	sem_post(usuarios);
 	shmdt(seg);
       }
-      sem_close(gestores);
+      sem_close(usuarios);
     }
   }
 }
 
-int escr_msg(int qid,struct mymsgbuf *qbuf) 
+int escr_msg(int qid,struct buff_msg *qbuf) 
 { 
    int resultado;
    
@@ -325,7 +338,7 @@ int escr_msg(int qid,struct mymsgbuf *qbuf)
 
 }
 
-int leer_msg(int qid,long type,struct mymsgbuf *qbuf) 
+int leer_msg(int qid,long type,struct buff_msg *qbuf) 
 { 
    int resultado;
    
@@ -339,13 +352,11 @@ void iniciaRecursos(char id){
   char claveCambios[] = {'c','a','m','b','i','o',id,'\0'};
   char claveMemoria = id;
   if (sem_open(claveCambios,O_CREAT,0600,0) != SEM_FAILED){
-    //printf ("Semáforo huecos creado con éxito\n");
   }
   else{
     printf("Error en la creación del semáforo cambios\n");
   }
   if (sem_open(claveMutex,O_CREAT,0600,1) != SEM_FAILED){
-    //printf ("Semáforo mutex creado con éxito\n");
   }
   else{
     printf("Error en la creación del semáforo mutex\n");
@@ -362,7 +373,6 @@ void iniciaRecursos(char id){
       printf("El segmento de memoria compartida ya existe\n"); 
     } 
   else{ 
-    //printf("Nuevo segmento creado\n");    
   }
 }
 
@@ -371,13 +381,11 @@ void eliminaRecursos(char id){
   char claveCambios[] = {'c','a','m','b','i','o',id,'\0'};
   char claveMemoria = id;
   if (sem_unlink(claveCambios) == 0){
-    //printf("El semáforo cambios se eliminó con éxito\n");
   }
   else{
     printf("Error al eliminar el semáforo cambios\n");
   }
   if (sem_unlink(claveMutex) == 0){
-    //printf("El semáforo mutex se eliminó con éxito\n");
   }
   else{
     printf("Error al eliminar el semáforo mutex\n");
@@ -394,28 +402,9 @@ void eliminaRecursos(char id){
     } 
   else{ 
     shmctl(shmid,IPC_RMID,NULL);
-    //printf("Segmento borrado con éxito\n");   
   }   
 }
 
 void iniciaDestruccion(void){
   autodestruction = 1;
-}
-
-int interfaz_ini(char id){
-   int select = 0;
-   printf("\nTERMINAL DEL GESTOR %c\n",id);
-   printf("Seleccione que desea hacer:\n");
-   printf("1.-Listar mis dispositivos\n");
-   printf("2.-Eliminar gestor y dispositivos del servidor\n");
-   printf("3.-Eliminar gestor y cerrar sevidor\n\n");
-   printf("Opción: ");
-   scanf("%d",&select);
-   printf("\n");
-   while ((select>3) || (select<1)){
-     printf("Por favor, introduzca una opción adecuada: ");
-     scanf("%d",&select);
-     printf("\n");
-   }
-   return (select);
 }
