@@ -27,6 +27,13 @@
 
 #define NO_ASIGNADO 10
 
+/*
+
+Este programa es el encargado de gestionar los dispositivos
+de los usuarios y comunicarselo a la base de datos para que almacene los cambios
+
+*/
+
 typedef struct dispositivo
 {
   char nombre[MAX_TAM_NOMBRE]; // Nombre
@@ -169,13 +176,13 @@ int interfaz_ini(char id)
 
   printf("\nTERMINAL DEL USUARIO: %c\n", id);
   printf("Seleccione una opción:\n");
-  printf("0->Salir\n");
-  printf("1->Registrar nuevo dispositivo\n");
-  printf("2->Cambiar estado de un dispositivo\n");
-  printf("3->Eliminar un dispositivo\n");
-  printf("4->Listar todos mis dispositivos\n");
-  printf("5->Borrar todos los dispositivos del usuario: %c\n", id);
-  printf("6->Cambiar de usuario\n\n");
+  printf("\t0->Salir\n");
+  printf("\t1->Registrar nuevo dispositivo\n");
+  printf("\t2->Cambiar estado de un dispositivo\n");
+  printf("\t3->Eliminar un dispositivo\n");
+  printf("\t4->Listar todos mis dispositivos\n");
+  printf("\t5->Borrar todos los dispositivos del usuario: %c\n", id);
+  printf("\t6->Cambiar de usuario\n\n");
   printf("Opción: ");
   scanf("%d", &opcion);
   printf("\n");
@@ -250,7 +257,7 @@ void createDisp(sem_t *mutex, sem_t *cambios, dispo *seg, sem_t *MC, dispo *disp
     // Guardamos el consumo
     dispS[indice].consumo = consumo;
     sem_post(MC);
-    printf("\nDatos actualizados, mostrando por pantalla\n");
+    printf("\nDatos actualizados, enviando a la base de datos\n");
   }
 
   sem_wait(mutex);

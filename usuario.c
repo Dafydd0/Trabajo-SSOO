@@ -24,6 +24,13 @@
 
 #define NO_ASIGNADO 10
 
+/*
+
+Este programa es el encargado de crear los usuarios que podrán gestionar los
+dispositivos que se almacenarán en ls base de datos
+
+*/
+
 typedef struct dispositivo
 {
   char nombre[MAX_TAM_NOMBRE]; // Nombre

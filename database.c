@@ -32,7 +32,7 @@
 
 /*
 
-La función de esta base de datos es la de crear y gestionar una cola de mensajes
+Este programa es el encargado de crear y gestionar una cola de mensajes
 y una zona de memoria compartida para los diversos usuarios.
 Además, se encarga de mostrar en una tabla actualizada en tiempo real la conexión
 y desconexión de diversos dispositivos que se gestionan
@@ -60,10 +60,10 @@ typedef struct dispositivo
 
 /*
 
-Estructura msgbuf, esta contiene el tipo de mensajes que se van a enviar por cola de mensajes
+Estructura buff_msg, esta contiene el tipo de mensajes que se van a enviar por cola de mensajes
 
 */
-struct msgbuf
+struct buff_msg
 {
   long mtype;
   disp dispo;
@@ -75,8 +75,8 @@ struct tm *fecha;
 void imprimirTabla(disp tabla[MAX_TOTAL], disp *MC);
 void iniciaRecursos();
 void eliminaRecursos();
-int escr_msg(int qid, struct msgbuf *qbuf);
-int leer_msg(int qid, long type, struct msgbuf *qbuf);
+int escr_msg(int qid, struct buff_msg *qbuf);
+int leer_msg(int qid, long type, struct buff_msg *qbuf);
 
 int main()
 {
@@ -93,7 +93,7 @@ int main()
 
   key_t claveCola;
   int msgqueue_id;
-  struct msgbuf qbuffer;
+  struct buff_msg qbuffer;
 
   clave = ftok(".", 'M');
   if ((semMC = sem_open("MC", 0)) == SEM_FAILED)
@@ -455,7 +455,7 @@ void eliminaRecursos()
 Función para leer de la cola de mensajes
 
 */
-int leer_msg(int qid, long type, struct msgbuf *qbuf)
+int leer_msg(int qid, long type, struct buff_msg *qbuf)
 {
   int resultado;
   resultado = msgrcv(qid, qbuf, sizeof(disp), type, 0);
@@ -467,7 +467,7 @@ int leer_msg(int qid, long type, struct msgbuf *qbuf)
 Función para escribir en la cola de mensajes
 
 */
-int escr_msg(int qid, struct msgbuf *qbuf)
+int escr_msg(int qid, struct buff_msg *qbuf)
 {
   int resultado;
   resultado = msgsnd(qid, qbuf, sizeof(disp), 0);
