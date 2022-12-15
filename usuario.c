@@ -157,7 +157,7 @@ int main()
                   // Este proceso se encarga de comprobar las actualizaciones en los dispositivos y comunicarselo a la base de datos
 
                   act.sa_handler = exitFun; /*función a ejecutar*/
-                  act.sa_flags = 0;                   /* ninguna acción especifica */
+                  act.sa_flags = 0;         /* ninguna acción especifica */
                   sigemptyset(&act.sa_mask);
                   sigaction(1, &act, NULL);
                   dispo tabla[MAX_DISP];
@@ -230,16 +230,11 @@ int main()
                       kill(pid, 1);
                       break;
                     }
-                    case (3): // ELIMINAR USUARIO, DISPOSITIVOS Y CERRAR BASE DE DATOS
+                    case (3): // ELIMINAR USUARIO Y CERRAR BASE DE DATOS
                     {
                       salir = 1;
                       liberarId(id);
                       sem_wait(mutex);
-                      for (int i = 0; i < MAX_DISP; i++)
-                      {
-                        if (seg[i].consumo != -1)
-                          seg[i].opciones = ELIMINAR;
-                      }
                       seg[0].opciones = SALIR;
                       sem_post(mutex);
                       sem_post(cambios);
@@ -279,9 +274,9 @@ int interfaz_inicio(char id)
   int select = 0;
   printf("\nTERMINAL DEL USUARIO %c\n", id);
   printf("Seleccione que desea hacer:\n");
-  printf("1->Listar mis dispositivos\n");
-  printf("2->Eliminar usuario y dispositivos de la base de datos\n");
-  printf("3->Eliminar usuario y cerrar sevidor\n\n");
+  printf("\t1->Listar mis dispositivos\n");
+  printf("\t2->Eliminar usuario y dispositivos de la base de datos\n");
+  printf("\t3->Eliminar usuario y cerrar sevidor\n\n");
   printf("Opción: ");
   scanf("%d", &select);
   printf("\n");
@@ -310,7 +305,7 @@ char obtenerId()
 
   if ((usuarios = sem_open("usuarios", 0)) == SEM_FAILED)
     printf("Se ha producido un error al abrir el semaforo de usuarios\n");
-  
+
   else
   {
     clave = ftok(".", 'G');
@@ -453,16 +448,20 @@ void eliminaRecursos(char id)
   char claveCambios[] = {'c', 'a', 'm', 'b', 'i', 'o', id, '\0'};
   char claveMemoria = id;
   if (sem_unlink(claveCambios) == 0)
-    printf("El semáforo cambios se ha eliminado con éxito\n");
+  {
+    // printf("El semáforo cambios se ha eliminado con éxito\n");
+  }
   else
     printf("Se ha producido un erro al eliminar el semáforo cambios\n");
 
   if (sem_unlink(claveMutex) == 0)
-    printf("El semáforo mutex se ha eliminado con éxito\n");
-  
+  {
+    // printf("El semáforo mutex se ha eliminado con éxito\n");
+  }
+
   else
     printf("Se ha producido un error al eliminar el semáforo mutex\n");
-  
+
   key_t clave;
   int shmid;
 
@@ -470,10 +469,9 @@ void eliminaRecursos(char id)
 
   if ((shmid = shmget(clave, (MAX_DISP) * sizeof(dispo), IPC_CREAT | 0660)) == -1)
     printf("Se ha producido un error al obtener el id del segmento de memoria\n");
-  
+
   else
     shmctl(shmid, IPC_RMID, NULL);
-
 }
 
 /*

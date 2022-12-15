@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
   dispo *seg = NULL;
 
   if (iniciaRecursos(id, &cambios, &mutex, &seg) == 0)
-    printf("ERROR: se produjo un error al inicializar los semaforos y la memoria compartida\n");
+    printf("Se ha producido un error al inicializar los semaforos y la memoria compartida\n");
   else
   {
 
@@ -83,18 +83,18 @@ int main(int argc, char *argv[])
     sem_t *MC = NULL;
     key_t keyS;
     dispo *dispS = NULL;
-    int shmidServ;
+    int shmidDB;
 
     keyS = ftok(".", 'M');
     if ((MC = sem_open("MC", 0)) == SEM_FAILED)
       printf("Se ha producido un error al abrir el semaforo\n");
     else
     {
-      if ((shmidServ = shmget(keyS, (MAX_DISP) * sizeof(dispo), IPC_CREAT | 0660)) == -1)
+      if ((shmidDB = shmget(keyS, (MAX_DISP) * sizeof(dispo), IPC_CREAT | 0660)) == -1)
         printf("Se ha producido un error al obener el id del segmento de memoria compartida\n");
       else
       {
-        if ((dispS = shmat(shmidServ, NULL, 0)) == (dispo *)-1)
+        if ((dispS = shmat(shmidDB, NULL, 0)) == (dispo *)-1)
           printf("Se ha producido un error al mapear el segmento\n");
         else
         {
@@ -372,7 +372,7 @@ void deleteDisp(sem_t *mutex, sem_t *cambios, dispo *seg)
 
     sem_post(cambios);
     sem_post(mutex);
-    printf("Sensor borrado con éxito\n");
+    printf("Dispositivo borrado con éxito\n");
   }
 }
 
@@ -425,7 +425,7 @@ void deleteAll(sem_t *mutex, sem_t *cambios, dispo *seg)
     }
     sem_post(cambios);
     sem_post(mutex);
-    printf("Sensores borrados con exito\n");
+    printf("Dispositivos borrados con exito\n");
   }
   else
   {

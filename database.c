@@ -97,7 +97,7 @@ int main()
 
   clave = ftok(".", 'M');
   if ((semMC = sem_open("MC", 0)) == SEM_FAILED)
-    printf("Error al abrir el semaforo\n");
+    printf("Se ha producido un error al abrir el semaforo\n");
   else
   {
     if ((shmid = shmget(clave, (TAM_BUFFER_MC) * sizeof(disp), IPC_CREAT | 0660)) == -1)
@@ -170,7 +170,6 @@ int main()
             tablaDispositivos[i] = empty;
           }
 
-          printf("Los dispositivos predefinidos son:\n");
           imprimirTabla(tablaDispositivos, seg);
 
           // La base de datos estará en un bucle infinito hasta que un cliente le diga que se cierre
@@ -275,7 +274,7 @@ int main()
               // Luego, se sale del bucle en el que está ejecutándose el código y se libera la memoria que había sido reservada para el programa
             case SALIR:
               exit = true;
-              printf("Cerrando servidor\n");
+              printf("La base de datos se ha cerrado correctamente\n");
               break;
 
             default:
@@ -333,11 +332,11 @@ void imprimirTabla(disp tabla[MAX_TOTAL], disp *MC)
       for (int j = 0; j < dispositivos; j++)
       {
         if (sem_wait(sem_MC) != 0)
-          printf("ERROR: el semáforo no ha podido ser bajado\n");
+          printf("Se ha producido un error al bajar el semáforo\n");
         if (strcmp(tabla[i].nombre, MC[j].nombre) == 0 && tabla[i].ON == 1)
           contador[j]++;
         if (sem_post(sem_MC) != 0)
-          printf("ERROR: el semáforo no ha podido ser subido\n");
+          printf("Se ha producido un error al subir el semáforo\n");
       }
     }
 
@@ -347,10 +346,10 @@ void imprimirTabla(disp tabla[MAX_TOTAL], disp *MC)
     {
       consumoTotal += contador[i] * MC[i].consumo;
       if (sem_wait(sem_MC) != 0)
-        printf("ERROR: el semáforo no ha podido ser subido\n");
+        printf("Se ha producido un error al bajar el semáforo\n");
       printf("|%9.13s\t|%12d\t\t|%14.2f\t\t|%14.2f\t\t|    %02d/%02d/%04d %02d:%02d\t|\n", MC[i].nombre, contador[i], MC[i].consumo, (contador[i] * MC[i].consumo), MC[i].day, MC[i].month, MC[i].year, MC[i].hour, MC[i].min);
       if (sem_post(sem_MC) != 0)
-        printf("ERROR: el semáforo no ha podido ser bajado\n");
+        printf("Se ha producido un error al subir el semáforo\n");
     }
     printf("+---------------+-----------------------+-----------------------+-----------------------+-----------------------+\n");
     printf("Consumo total: %10.2f KWh \t|\tCoste KWh: %10.5f €/KWh \t|\tPrecio total: %10.2f €/h \t|\n\n\n\n\n", consumoTotal, COSTE_KWH, COSTE_KWH * consumoTotal);
@@ -366,7 +365,7 @@ void iniciaRecursos()
   // Creamos el semaforo
   if (sem_open("cola", O_CREAT, 0600, 1) == SEM_FAILED)
 
-    printf("Se ha producido un error en la creación del semáforo cola\n");
+    printf("368Se ha producido un error en la creación del semáforo cola\n");
 
   key_t clave;
   int shmid;
@@ -383,33 +382,30 @@ void iniciaRecursos()
     printf("Se ha producido un error en la creación del semáforo usuarios\n");
 
   key_t keyUsers;
-  int shmidGest;
+  int shmidUsu;
   // Creamos la memoria compartida
   keyUsers = ftok(".", 'G');
 
-  shmidGest = shmget(keyUsers, (MAX_USUARIOS) * sizeof(int), IPC_CREAT | IPC_EXCL | 0660);
+  shmidUsu = shmget(keyUsers, (MAX_USUARIOS) * sizeof(int), IPC_CREAT | IPC_EXCL | 0660);
 
-  int *segGest = shmat(shmidGest, NULL, 0);
+  int *segUsu = shmat(shmidUsu, NULL, 0);
   for (int i = 0; i < MAX_USUARIOS; i++)
-    segGest[i] = 0;
+    segUsu[i] = 0;
 
-  shmdt(segGest);
+  shmdt(segUsu);
 }
 
 void eliminaRecursos()
 {
   if (sem_unlink("cola") == 0)
-    printf("El semáforo cola se ha eliminado con éxito\n");
-  
-  else
-    printf("Se ha producido un error al eliminar el semáforo cola\n");
-  
+  {
+    // printf("El semáforo cola se ha eliminado con éxito\n");
+  }
+
   if (sem_unlink("MC") == 0)
-    printf("El semáforo MC se ha eliminado con éxito\n");
-  
-  else
-    printf("Se ha producido un error al eliminar el semáforo MC\n");
-  
+  {
+    // printf("El semáforo MC se ha eliminado con éxito\n");
+  }
 
   key_t clave;
   int shmid;
@@ -419,10 +415,9 @@ void eliminaRecursos()
 
   if ((shmid = shmget(clave, (TAM_BUFFER_MC) * sizeof(disp), IPC_CREAT | 0660)) == -1)
     printf("Se ha producido un error al obtener el id del segmento de memoria\n");
-  
+
   else
     shmctl(shmid, IPC_RMID, NULL);
-  
 
   // Cerramos la cola
   int msgqueue_id;
@@ -431,23 +426,22 @@ void eliminaRecursos()
 
   // Memoria y semáforos de los usuarios
 
-  if (sem_unlink("gestores") == 0)
-    printf ("El semáforo usuarios se ha eliminado con éxito\n");
-  
-  else
-    printf("Se ha producido un error al eliminar el semáforo gestusuarios\n");
-  
+  if (sem_unlink("usuarios") == 0)
+  {
+    // printf("El semáforo usuarios se ha eliminado con éxito\n");
+  }
+
   key_t keyUsers;
-  int shmidGest;
+  int shmidUsu;
   // Eliminamos la memoria compartida
   keyUsers = ftok(".", 'G');
 
-  if ((shmidGest = shmget(keyUsers, (MAX_USUARIOS) * sizeof(int), IPC_CREAT | 0660)) == -1)
-  
+  if ((shmidUsu = shmget(keyUsers, (MAX_USUARIOS) * sizeof(int), IPC_CREAT | 0660)) == -1)
+
     printf("Se ha producido un error, el segmento de memoria usuarios ya existe\n");
-  
+
   else
-    shmctl(shmidGest, IPC_RMID, NULL);
+    shmctl(shmidUsu, IPC_RMID, NULL);
 }
 
 /*
