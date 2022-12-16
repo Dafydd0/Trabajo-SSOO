@@ -276,7 +276,7 @@ int interfaz_inicio(char id)
   printf("Seleccione que desea hacer:\n");
   printf("\t1->Listar mis dispositivos\n");
   printf("\t2->Eliminar usuario y dispositivos de la base de datos\n");
-  printf("\t3->Eliminar usuario y cerrar sevidor\n\n");
+  printf("\t3->Eliminar usuario y cerrar base de datos\n\n");
   printf("Opción: ");
   scanf("%d", &select);
   printf("\n");
